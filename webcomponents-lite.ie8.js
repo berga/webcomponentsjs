@@ -473,9 +473,116 @@
         this._isRelative = false;
     }
 
+    function attachProperties(){
+        Object.defineProperty("href", this._dom, {
+            get: function () {
+                if (this._isInvalid) return this._url;
+                var authority = "";
+                if ("" != this._username || null != this._password) {
+                    authority = this._username + (null != this._password ? ":" + this._password : "") + "@";
+                }
+                return this.protocol + (this._isRelative ? "//" + authority + this.host : "") + this.pathname + this._query + this._fragment;
+            },
+            set: function (href) {
+                clear.call(this);
+                parse.call(this, href);
+            }
+        });
+        Object.defineProperty("protocol", this._dom, {
+            get: function () {
+                return this._scheme + ":";
+            },
+            set: function (protocol) {
+                if (this._isInvalid) return;
+                parse.call(this, protocol + ":", "scheme start");
+            }
+        });
+        Object.defineProperty("host", this._dom, {
+            get: function () {
+                return this._isInvalid ? "" : this._port ? this._host + ":" + this._port : this._host;
+            },
+            set: function (host) {
+                if (this._isInvalid || !this._isRelative) return;
+                parse.call(this, host, "host");
+            }
+        });
+        Object.defineProperty("hostname", this._dom, {
+            get: function () {
+                return this._host;
+            },
+            set: function (hostname) {
+                if (this._isInvalid || !this._isRelative) return;
+                parse.call(this, hostname, "hostname");
+            }
+        });
+        Object.defineProperty("port", this._dom, {
+            get: function () {
+                return this._port;
+            },
+            set: function (port) {
+                if (this._isInvalid || !this._isRelative) return;
+                parse.call(this, port, "port");
+            }
+        });
+        Object.defineProperty("pathname", this._dom, {
+            get: function () {
+                return this._isInvalid ? "" : this._isRelative ? "/" + this._path.join("/") : this._schemeData;
+            },
+            set: function (pathname) {
+                if (this._isInvalid || !this._isRelative) return;
+                this._path = [];
+                parse.call(this, pathname, "relative path start");
+            }
+        });
+        Object.defineProperty("search", this._dom, {
+            get: function () {
+                return this._isInvalid || !this._query || "?" == this._query ? "" : this._query;
+            },
+            set: function (search) {
+                if (this._isInvalid || !this._isRelative) return;
+                this._query = "?";
+                if ("?" == search[0]) search = search.slice(1);
+                parse.call(this, search, "query");
+            }
+        });
+        Object.defineProperty("hash", this._dom, {
+            get: function () {
+                return this._isInvalid || !this._fragment || "#" == this._fragment ? "" : this._fragment;
+            },
+            set: function (hash) {
+                if (this._isInvalid) return;
+                this._fragment = "#";
+                if ("#" == hash[0]) hash = hash.slice(1);
+                parse.call(this, hash, "fragment");
+            }
+        });
+        Object.defineProperty("origin", this._dom, {
+            get: function () {
+                var host;
+                if (this._isInvalid || !this._scheme) {
+                    return "";
+                }
+                switch (this._scheme) {
+                    case "data":
+                    case "file":
+                    case "javascript":
+                    case "mailto":
+                        return "null";
+                }
+                host = this.host;
+                if (!host) {
+                    return "";
+                }
+                return this._scheme + "://" + host;
+            }
+        });
+    }
+
     function jURL(url, base) {
         if (base !== undefined && !(base instanceof jURL)) base = new jURL(String(base));
         this._url = url;
+        this._dom = document.createElement("url");
+        attachProperties.call(this);
         clear.call(this);
         var input = url.replace(/^[ \t\r\n\f]+|[ \t\r\n\f]+$/g, "");
         parse.call(this, input, null, base);
@@ -483,99 +590,9 @@
 
     jURL.prototype = {
         toString: function () {
-            return this.href;
+            return this._dom.href;
         }
     };
-    jURL.__defineGetter__("href", function () {
-        if (this._isInvalid) return this._url;
-        var authority = "";
-        if ("" != this._username || null != this._password) {
-            authority = this._username + (null != this._password ? ":" + this._password : "") + "@";
-        }
-        return this.protocol + (this._isRelative ? "//" + authority + this.host : "") + this.pathname + this._query + this._fragment;
-    });
-    jURL.__defineSetter__("href", function (href) {
-        clear.call(this);
-        parse.call(this, href);
-    });
-
-    jURL.__defineGetter__("protocol", function () {
-        return this._scheme + ":";
-    });
-    jURL.__defineSetter__("href", function (protocol) {
-        if (this._isInvalid) return;
-        parse.call(this, protocol + ":", "scheme start");
-    });
-    jURL.__defineGetter__("host", function () {
-        return this._isInvalid ? "" : this._port ? this._host + ":" + this._port : this._host;
-    });
-    jURL.__defineSetter__("host", function (host) {
-            if (this._isInvalid || !this._isRelative) return;
-            parse.call(this, host, "host");
-        }
-    );
-    jURL.__defineGetter__("hostname", function () {
-        return this._host;
-    });
-    jURL.__defineSetter__("hostname", function (hostname) {
-        if (this._isInvalid || !this._isRelative) return;
-        parse.call(this, hostname, "hostname");
-
-    });
-    jURL.__defineGetter__("port", function () {
-        return this._port;
-    });
-    jURL.__defineSetter__("port", function (port) {
-        if (this._isInvalid || !this._isRelative) return;
-        parse.call(this, port, "port");
-    });
-    jURL.__defineGetter__("pathname", function () {
-        return this._isInvalid ? "" : this._isRelative ? "/" + this._path.join("/") : this._schemeData;
-    });
-    jURL.__defineSetter__("pathname", function (pathname) {
-        if (this._isInvalid || !this._isRelative) return;
-        this._path = [];
-        parse.call(this, pathname, "relative path start");
-    });
-    jURL.__defineGetter__("search", function () {
-        return this._isInvalid || !this._query || "?" == this._query ? "" : this._query;
-    });
-    jURL.__defineSetter__("search", function (search) {
-        if (this._isInvalid || !this._isRelative) return;
-        this._query = "?";
-        if ("?" == search[0]) search = search.slice(1);
-        parse.call(this, search, "query");
-
-    });
-    jURL.__defineGetter__("hash", function () {
-        return this._isInvalid || !this._fragment || "#" == this._fragment ? "" : this._fragment;
-    });
-    jURL.__defineSetter__("hash", function (hash) {
-        if (this._isInvalid) return;
-        this._fragment = "#";
-        if ("#" == hash[0]) hash = hash.slice(1);
-        parse.call(this, hash, "fragment");
-
-    });
-    jURL.__defineGetter__("origin", function () {
-        var host;
-        if (this._isInvalid || !this._scheme) {
-            return "";
-        }
-        switch (this._scheme) {
-            case "data":
-            case "file":
-            case "javascript":
-            case "mailto":
-                return "null";
-        }
-        host = this.host;
-        if (!host) {
-            return "";
-        }
-        return this._scheme + "://" + host;
-
-    });
     var OriginalURL = scope.URL;
     if (OriginalURL) {
         jURL.createObjectURL = function (blob) {
@@ -586,8 +603,7 @@
         };
     }
     scope.URL = jURL;
-})
-(self);
+})(self);
 
 if (typeof WeakMap === "undefined") {
     (function () {
