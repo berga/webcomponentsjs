@@ -473,7 +473,7 @@
         this._isRelative = false;
     }
 
-    function attachProperties(){
+    function attachProperties() {
         Object.defineProperty("href", this._dom, {
             get: function () {
                 if (this._isInvalid) return this._url;
@@ -994,13 +994,48 @@ if (typeof WeakMap === "undefined") {
     var TemplateImpl = function () {
     };
     if (needsTemplate) {
-        var contentDoc = document.implementation.createHTMLDocument("template");
+        if (document.implementation.createHTMLDocument) {
+            var contentDoc = document.implementation.createHTMLDocument("template");
+        } else {
+            var contentDoc = document.createDocumentFragment();
+            var html = contentDoc.appendChild(contentDoc.createElement("html"));
+            html.appendChild(contentDoc.createElement("html"));
+            html.appendChild(contentDoc.createElement("body"));
+            Object.defineProperty(contentDoc, "head",  {
+                get: function () {
+                    this.getElementsByTagName("head")[0];
+                }
+            });
+            Object.defineProperty(contentDoc, "body",  {
+                get: function () {
+                    this.getElementsByTagName("body")[0];
+                }
+            });
+        }
         var canDecorate = true;
         var templateStyle = document.createElement("style");
-        templateStyle.textContent = TEMPLATE_TAG + "{display:none;}";
-        var head = document.head;
-        head.insertBefore(templateStyle, head.firstElementChild);
-        TemplateImpl.prototype = Object.create(HTMLElement.prototype);
+        try{
+            templateStyle.textContent = TEMPLATE_TAG + "{display:none;}";
+            var head = document.head;
+
+            if(head && head.firstElementChild){
+                head.insertBefore(templateStyle, head.firstElementChild);
+            }else{
+                var firstSstyle = document.getElementsByTagName("style")[0];
+                if(firstSstyle){
+                    firstSstyle.parentNode().insertBefore(firstSstyle, templateStyle);
+                }else{
+                    if(!head){
+                        document.getElementsByTagName("head")[0].appendChild(templateStyle);
+                    }
+                }
+            }
+        }catch(e){
+            console.log(e);
+        }
+        var elementPrototype = typeof HTMLElement !== "undefined"
+            ? HTMLElement.prototype : Element.prototype;
+        TemplateImpl.prototype = Object.create(elementPrototype);
         TemplateImpl.decorate = function (template) {
             if (template.content) {
                 return;
